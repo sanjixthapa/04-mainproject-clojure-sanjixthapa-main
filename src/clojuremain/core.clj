@@ -1,116 +1,119 @@
 (ns clojuremain.core)
 
-;; Function to simplify NOR expressions
-(defn simplify [expr]
-  (cond
-    ;; (nor false) => true
-    (= expr '(nor false)) true
+(defn simplify-nested [expr]
+  (if (seq? expr)
+    (map #(if (seq? %) (simplify-nested %) %) expr)
+    expr))
 
-    ;; (nor true) => false
-    (= expr '(nor true)) false
+(defn simplify [e]
+  (let [expr (simplify-nested e)]
+    (cond
+      ;; (nor false) => true
+      (= expr '(nor false)) true
 
-    ;;  (nor (nor x)) => x
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (seq? (second expr))
-         (= 'nor (first (second expr))))
-    (second (second expr))
+      ;; (nor true) => false
+      (= expr '(nor true)) false
 
-    ;; (nor (nor (nor x))) => (nor x)
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (seq? (second expr))
-         (= 'nor (first (second expr)))
-         (seq? (second (second expr)))
-         (= 'nor (first (second (second expr)))))
-    (list 'nor (second (second (second expr))))
+      ;;  (nor (nor x)) => x
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (seq? (second expr))
+           (= 'nor (first (second expr))))
+      (second (second expr))
 
-    ;; (nor (nor (nor (nor x)))) => x
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (every? #(= 'nor %) (rest expr))
-         (= 'nor (first (last expr))))
-    (second (last expr))
+      ;; (nor (nor (nor x))) => (nor x)
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (seq? (second expr))
+           (= 'nor (first (second expr)))
+           (seq? (second (second expr)))
+           (= 'nor (first (second (second expr)))))
+      (list 'nor (second (second (second expr))))
 
-    ;;  (nor x x) => (nor x)
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (= (second expr) (last expr)))
-    (list 'nor (second expr))
+      ;; (nor (nor (nor (nor x)))) => x
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (seq? (second expr))
+           (= 'nor (first (second expr)))
+           (seq? (second (second expr)))
+           (= 'nor (first (second (second expr))))
+           (seq? (second (second (second expr))))
+           (= 'nor (first (second (second (second expr))))))
+      (second (last expr))
 
-    ;;  (nor x y) => (nor x y)
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (<= (count expr) 3))
-    expr
+      ;;  (nor x x) => (nor x)
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (= (second expr) (last expr)))
+      (list 'nor (second expr))
 
-    ;; (nor x true) => false
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (= (last expr) true))
-    false
+      ;;  (nor x y) => (nor x y)
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (<= (count expr) 3))
+      expr
 
-    ;;  (nor x false) => (nor x)
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (= (last expr) false))
-    (list 'nor (first expr))
+      ;; (nor x true) => false
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (= (last expr) true))
+      false
 
-    ;;  (nor false false) => true
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (every? #(= false %) (rest expr)))
-    true
+      ;;  (nor x false) => (nor x)
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (= (last expr) false))
+      (list 'nor (first expr))
 
-    ;; Rule: (nor x y false) => (nor x y)
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (= (last expr) false))
-    (take (dec (count expr)) expr)
+      ;;  (nor false false) => true
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (every? #(= false %) (rest expr)))
+      true
 
-    ;; Rule: (nor x y true) => false
-    (and (seq? expr)
-         (= 'nor (first expr))
-         (= (last expr) true))
-    false
+      ;; Rule: (nor x y false) => (nor x y)
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (= (last expr) false))
+      (take (dec (count expr)) expr)
 
-    ;; Recursive rule for nested simplification
-    :else (map simplify expr)))
+      ;; Rule: (nor x y true) => false
+      (and (seq? expr)
+           (= 'nor (first expr))
+           (= (last expr) true))
+      false
 
-;; Function to convert NOT expressions to NOR
+      ;; Recursively simplify each element if it's a sequence
+      :else (if (seq? expr)
+              (map simplify expr)
+              expr))))
+
 (defn not-to-nor [expr]
-  (let [arg (first (rest expr))] ;; Extract the argument of the NOT expression
-    (list 'nor arg))) ;; Return a NOR expression with the argument
+  (let [arg (first (rest expr))]
+    (list 'nor arg)))
 
-;; Function to convert OR expressions to NOR
 (defn or-to-nor [expr]
-  (list 'nor (cons 'nor (rest expr)))) ;; Return a NOR expression with each OR argument negated and combined with NOR
+  (list 'nor (cons 'nor (rest expr))))
 
-;; Function to convert AND expressions to NOR
 (defn and-to-nor [expr]
-  (cons 'nor (map #(list 'nor %) (rest expr)))) ;; Return a NOR expression with each AND argument negated and combined with NOR
+  (cons 'nor (map #(list 'nor %) (rest expr))))
 
-;; Function to convert single logical operations to NOR
 (defn nor-single [expr]
   (cond
-    (and (list? expr) (= 'not (first expr))) ;; If the expression is a NOT expression
-    (not-to-nor expr) ;; Convert it to NOR
-    (and (list? expr) (= 'or (first expr))) ;; If the expression is an OR expression
-    (or-to-nor expr) ;; Convert it to NOR
-    (and (list? expr) (= 'and (first expr))) ;; If the expression is an AND expression
-    (and-to-nor expr) ;; Convert it to NOR
-    :else expr)) ;; Otherwise, return the expression unchanged
+    (and (list? expr) (= 'not (first expr)))
+    (not-to-nor expr)
+    (and (list? expr) (= 'or (first expr)))
+    (or-to-nor expr)
+    (and (list? expr) (= 'and (first expr)))
+    (and-to-nor expr)
+    :else expr))
 
-;; Function to convert expressions to NOR
 (defn nor-convert [expr]
-  (let [converted-expr (nor-single expr)] ;; Convert single logical operations to NOR
-    (if (seq? converted-expr) ;; If the result is a sequence
-      (map #(if (seq? %) (nor-convert %) %) converted-expr) ;; Recursively apply nor-convert to each element of the sequence
-      converted-expr))) ;; Return the converted expression
+  (let [converted-expr (nor-single expr)]
+    (if (seq? converted-expr)
+      (map #(if (seq? %) (nor-convert %) %) converted-expr)
+      converted-expr)))
 
-
-
-;; Function to bind values to variables in the expression
 (defn bind-values [exp bindings]
   (if (seq? exp)
     (map #(bind-values % bindings) exp)
@@ -118,16 +121,9 @@
       (bindings exp)
       exp)))
 
-
-;; Function to evaluate the expression with the provided bindings after simplification
 (defn evalexp [exp bindings]
-  (simplify (bind-values (nor-convert exp) bindings))) ;; Simplify the expression after converting it to NOR and binding values
+  (simplify (bind-values (nor-convert exp) bindings)))
+(simplify '(nor (nor (nor (nor (nor true))))))
 
 
-(def p1 '(and x (or x (and y (not z)))))
-(evalexp p1 '{x false, z true})
 
-(def p3 '(or true a))
-(evalexp p3 '{x false, z true})
-
-'(nor (nor false) (nor (nor (nor false (nor (nor y) (nor (nor true)))))))
