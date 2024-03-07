@@ -108,7 +108,6 @@
       (map #(if (seq? %) (nor-convert %) %) converted-expr) ;; Recursively apply nor-convert to each element of the sequence
       converted-expr))) ;; Return the converted expression
 
-;; Function to bind values to variables in the expression
 
 
 ;; Function to bind values to variables in the expression
