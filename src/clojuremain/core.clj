@@ -3,20 +3,20 @@
 ;; Function to simplify NOR expressions
 (defn simplify [expr]
   (cond
-    ;; Rule: (nor false) => true
+    ;; (nor false) => true
     (= expr '(nor false)) true
 
-    ;; Rule: (nor true) => false
+    ;; (nor true) => false
     (= expr '(nor true)) false
 
-    ;; Rule: (nor (nor x)) => x
+    ;;  (nor (nor x)) => x
     (and (seq? expr)
          (= 'nor (first expr))
          (seq? (second expr))
          (= 'nor (first (second expr))))
     (second (second expr))
 
-    ;; Rule: (nor (nor (nor x))) => (nor x)
+    ;; (nor (nor (nor x))) => (nor x)
     (and (seq? expr)
          (= 'nor (first expr))
          (seq? (second expr))
@@ -25,38 +25,38 @@
          (= 'nor (first (second (second expr)))))
     (list 'nor (second (second (second expr))))
 
-    ;; Rule: (nor (nor (nor (nor x)))) => x
+    ;; (nor (nor (nor (nor x)))) => x
     (and (seq? expr)
          (= 'nor (first expr))
          (every? #(= 'nor %) (rest expr))
          (= 'nor (first (last expr))))
     (second (last expr))
 
-    ;; Rule: (nor x x) => (nor x)
+    ;;  (nor x x) => (nor x)
     (and (seq? expr)
          (= 'nor (first expr))
          (= (second expr) (last expr)))
     (list 'nor (second expr))
 
-    ;; Rule: (nor x y) => (nor x y)
+    ;;  (nor x y) => (nor x y)
     (and (seq? expr)
          (= 'nor (first expr))
          (<= (count expr) 3))
     expr
 
-    ;; Rule: (nor x true) => false
+    ;; (nor x true) => false
     (and (seq? expr)
          (= 'nor (first expr))
          (= (last expr) true))
     false
 
-    ;; Rule: (nor x false) => (nor x)
+    ;;  (nor x false) => (nor x)
     (and (seq? expr)
          (= 'nor (first expr))
          (= (last expr) false))
     (list 'nor (first expr))
 
-    ;; Rule: (nor false false) => true
+    ;;  (nor false false) => true
     (and (seq? expr)
          (= 'nor (first expr))
          (every? #(= false %) (rest expr)))
@@ -127,3 +127,8 @@
 
 (def p1 '(and x (or x (and y (not z)))))
 (evalexp p1 '{x false, z true})
+
+(def p3 '(or true a))
+(evalexp p3 '{x false, z true})
+
+'(nor (nor false) (nor (nor (nor false (nor (nor y) (nor (nor true)))))))
